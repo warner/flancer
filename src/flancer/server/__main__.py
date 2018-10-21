@@ -71,7 +71,9 @@ def run(reactor, opts):
         print("(waiting for invitation to be accepted...)")
         w.send_message(furl)
         ack = yield w.get_message()
-        if ack != "ok":
+        if ack == "ok":
+            print("invitation accepted, certificate issued")
+        else:
             print("error: %s" % ack)
         yield w.close()
 

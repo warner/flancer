@@ -52,14 +52,17 @@ class DynamicAuthority(authority.FileAuthority):
     def loadFile(self, _):
         pass
 
-    def setTXT(self, name, data):
+    def setTXT(self, hostname, txtname, data):
         assert type(data) is type(b""), (type(data), data)
-        print "setTXT", name, data
-        self.records[name] = [dns.Record_TXT(data, ttl=5)]
+        # hostname is like 'test1.sf.example.com'
+        print "setTXT", hostname, txtname, data
+        fullname = "%s.%s" % (txtname, hostname)
+        self.records[fullname] = [dns.Record_TXT(data, ttl=5)]
 
-    def deleteTXT(self, name):
-        print "deleteTXT", name
-        del self.records[name]
+    def deleteTXT(self, hostname, txtname):
+        print "deleteTXT", hostname, txtname
+        fullname = "%s.%s" % (txtname, hostname)
+        del self.records[fullname]
 
     def _lookup(self, name, cls, type, timeout = None):
         print "LOOKUP: %s %s %s" % (name, dns.QUERY_CLASSES.get(cls, cls),
@@ -91,11 +94,11 @@ class HostController(Referenceable, object):
     _server = attr.ib()
 
     def remote_get_hostname(self):
-        return self._hostname
-    def remote_set_txt(self, data):
-        self._server.add_txt(self._hostname, data)
-    def remote_delete_txt(self):
-        self._server.delete_txt(self._hostname)
+        return self._hostname # e.g. test1.sf.example.com
+    def remote_set_txt(self, txtname, data):
+        self._server.add_txt(self._hostname, txtname, data)
+    def remote_delete_txt(self, txtname):
+        self._server.delete_txt(self._hostname, txtname)
 
 
 @attr.s(cmp=False)
@@ -177,32 +180,36 @@ class Server(object):
         print(self._dns_server.resolver)
         self._dns_server.resolver = ResolverChain(resolvers)
 
-    def add_txt(self, name, data):
-        zone = extract_zone(name)
+    def add_txt(self, hostname, txtname, data):
+        # hostname is like 'test1.sf.example.com'
+        # but 'sf.example.com' is what's in self._authorities
+        zone = hostname.split(".", 1)[1]
         if zone not in self._authorities:
-            raise KeyError("zone '%s' (from name '%s') not in authorities %s" %
-                           (zone, name, self._authorities.keys()))
-        self._authorities[zone].setTXT(name, data)
+            raise KeyError("zone '%s' not in authorities %s" %
+                           (zone, self._authorities.keys()))
+        self._authorities[zone].setTXT(hostname, txtname, data)
 
-    def delete_txt(self, name):
-        zone = extract_zone(name)
+    def delete_txt(self, hostname, txtname):
+        zone = hostname.split(".", 1)[1]
         if zone not in self._authorities:
-            raise KeyError("zone '%s' (from name '%s') not in authorities %s" %
-                           (zone, name, self._authorities.keys()))
-        self._authorities[zone].deleteTXT(name)
+            raise KeyError("zone '%s' not in authorities %s" %
+                           (zone, self._authorities.keys()))
+        self._authorities[zone].deleteTXT(hostname, txtname)
 
     @inlineCallbacks
     def test_zone(self, zone_name):
         print("testing new zone %s" % zone_name)
-        test_host = "_lancer_test." + zone_name
-        test_data = "lancer_txt"
-        self.add_txt(test_host, test_data)
+        hostname = "_flancer_test.%s" % zone_name
+        txtname = "_flancer_txtname"
+        fullname = "%s.%s" % (txtname, hostname)
+        test_data = "flancer_txt"
+        self.add_txt(hostname, txtname, test_data)
         try:
-            res = yield dns_client.lookupText(test_host)
+            res = yield dns_client.lookupText(fullname)
         except DNSNameError as e:
             print("failure to test zone: is there an NS record pointing to us?")
             print(e)
-            self.delete_txt(test_host)
+            self.delete_txt(hostname, txtname)
             raise ValueError("failure to test zone: DNS error. Is there an NS record pointing to us?")
         #print("result", res)
         (answer, authority, additional) = res
@@ -212,10 +219,10 @@ class Server(object):
                 #print("TXT", r.payload.data[0])
                 if r.payload.data[0] == test_data:
                     print("success")
-                    self.delete_txt(test_host)
+                    self.delete_txt(hostname, txtname)
                     returnValue(True)
         print("failure to test zone: is there an NS record pointing to us?")
-        self.delete_txt(test_host)
+        self.delete_txt(hostname, txtname)
         raise ValueError("failure to test zone: is there an NS record pointing to us?")
 
 def makeService(config, reactor=reactor):
