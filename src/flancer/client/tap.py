@@ -106,6 +106,9 @@ class Options(usage.Options):
     synopsis = "[options..]"
     longdesc = LONGDESC
 
+    optFlags = [
+        ("really", None, "use real certs, not staging"),
+        ]
     optParameters = [
         ("basedir", None, "~/.flancer-client", "directory to hold config.json"),
         ]
@@ -219,10 +222,12 @@ def makeService(config, reactor=reactor):
     acme_path = basedir.asTextMode()
     acme_key = maybe_key(acme_path)
     cert_store = FlancerCertificateStore(data, basedir)
-    staging = True
+    staging = not config["really"]
     if staging:
+        print("STAGING mode")
         le_url = LETSENCRYPT_STAGING_DIRECTORY
     else:
+        print("REAL CERTIFICATE mode")
         le_url = LETSENCRYPT_DIRECTORY
     client_creator = partial(Client.from_url, reactor=reactor,
                              url=le_url,
