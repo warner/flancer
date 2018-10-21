@@ -157,25 +157,26 @@ class FlancerResponder(object):
 
     @inlineCallbacks
     def start_responding(self, server_name, challenge, response):
-        validation = _validation(response)
-        #full_name = challenge.validation_domain_name(server_name)
-        #subdomain = _split_zone(full_name, self._zone_name)
-        #if subdomain == '':
-        #    subdomain = '@'
-        #print("full_name", full_name)
+        # This 'server_name' is like test1.sf.example.com
         print("start_responding", server_name)
+        validation = _validation(response)
+        full_name = challenge.validation_domain_name(server_name)
+        # full_name is _acme-challenge.$SERVERNAME
+        subdomain = _split_zone(full_name, server_name)
+        # subdomain should always just be _acme-challenge
+        #print("full_name", full_name)
         furl = self._data["hosts"][server_name].encode("ascii")
         rr = yield self._tub.getReference(furl)
-        yield rr.callRemote("set_txt", validation.encode("ascii"))
+        yield rr.callRemote("set_txt", subdomain, validation.encode("ascii"))
 
     @inlineCallbacks
     def stop_responding(self, server_name, challenge, response):
-        #full_name = challenge.validation_domain_name(server_name)
-        #subdomain = _split_zone(full_name, self._zone_name)
         print("stop_responding", server_name)
+        full_name = challenge.validation_domain_name(server_name)
+        subdomain = _split_zone(full_name, server_name)
         furl = self._data["hosts"][server_name].encode("ascii")
         rr = yield self._tub.getReference(furl)
-        yield rr.callRemote("delete_txt")
+        yield rr.callRemote("delete_txt", subdomain)
 
 
 @attr.s(cmp=False)
@@ -198,7 +199,7 @@ class Controller(Referenceable, object):
             print(Failure())
             raise
         # and provoke the issuer to get a cert right away
-        self._issuer.issue_cert(hostname)
+        yield self._issuer.issue_cert(hostname)
         returnValue(hostname)
 
 def makeService(config, reactor=reactor):
