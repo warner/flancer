@@ -62,7 +62,7 @@ setup(
     install_requires=[
         "twisted",
         "foolscap",
-        "txacme[libcloud]", # only on client
+        "txacme", # only needed on client
         "magic-wormhole",
         ],
     version="0.0.1",
