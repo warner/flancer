@@ -258,7 +258,7 @@ def makeService(config, reactor=reactor):
     issuer.setServiceParent(parent)
 
     if "dyndns_furl" in data:
-        start_dyndns_canary(tub, data["dyndns_furl"])
+        start_dyndns_canary(tub, data["dyndns_furl"].encode("ascii"))
 
     c = Controller(tub, data, issuer)
     tub.registerReference(c, furlFile=basedir.child("controller.furl").path)
