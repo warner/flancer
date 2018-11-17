@@ -9,6 +9,7 @@ from twisted.application.service import MultiService
 from twisted.application.internet import UDPServer, TCPServer
 #from twisted.application.internet import TimerService
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.address import IPv4Address, IPv6Address
 #from twisted.names import tap, authority, dns, resolve
 from twisted.names.server import DNSServerFactory
 from twisted.names import authority, dns
@@ -64,6 +65,11 @@ class DynamicAuthority(authority.FileAuthority):
         fullname = "%s.%s" % (txtname, hostname)
         del self.records[fullname]
 
+    def setRecord(self, hostname, record):
+        self.records[hostname] = [record]
+    def clearRecord(self, hostname):
+        del self.records[hostname]
+
     def _lookup(self, name, cls, type, timeout = None):
         print "LOOKUP: %s %s %s" % (name, dns.QUERY_CLASSES.get(cls, cls),
                                     dns.QUERY_TYPES.get(type, type))
@@ -87,6 +93,25 @@ class Data(dict):
 
     def save(self):
         self._fn.setContent(json.dumps(self).encode("utf-8")+"\n")
+
+@attr.s(cmp=False)
+class DyndnsController(Referenceable, object):
+    _hostname = attr.ib() # e.g. gw.sf.example.com
+    _server = attr.ib()
+
+    def remote_connect(self, canary):
+        addr = canary.getPeer()
+        record = None
+        if isinstance(addr, IPv4Address):
+            record = dns.Record_A(addr.host, ttl=600)
+        elif isinstance(addr, IPv6Address):
+            record = dns.Record_AAAA(addr.host, ttl=600)
+        else:
+            print "unusable gateway addr: %s %s" % (self._hostname, addr)
+            return
+        print "setting gateway record: %s %s" % (self._hostname, record)
+        self._server.set_dyndns(self._hostname, record)
+
 
 @attr.s(cmp=False)
 class HostController(Referenceable, object):
@@ -115,6 +140,9 @@ class Controller(Referenceable, object):
             for (hostname, swissnum) in zd["hostname_swissnums"]:
                 if swissnum == name:
                     return HostController(hostname, self._server)
+        for (hostname, swissnum) in self._data.get("dyndns", []).items():
+            if swissnum == name:
+                return DyndnsController(hostname, self._server)
 
     @inlineCallbacks
     def remote_add_zone(self, zone_name, server_name):
@@ -147,6 +175,23 @@ class Controller(Referenceable, object):
         furl = self._furl_prefix + swissnum
         returnValue(furl)
         yield 0
+
+    @inlineCallbacks
+    def remote_add_dyndns(self, hostname):
+        zone = extract_zone(hostname)
+        if zone not in self._data["zones"]:
+            returnValue( (False, "hostname %s not in a registered zone" % hostname) )
+        swissnum = make_swissnum()
+        if "dyndns" not in self._data:
+            self._data["dyndns"] = {}
+        if hostname in self._data["dyndns"]:
+            self._server.clearRecord(hostname)
+        self._data["dyndns"][hostname] = swissnum
+        self._data.save()
+        assert self._furl_prefix
+        furl = self._furl_prefix + swissnum
+        returnValue( (True, furl) )
+        yield 0 # inlineCallbacks requires a generator
 
 @attr.s
 class Server(object):
@@ -195,6 +240,16 @@ class Server(object):
             raise KeyError("zone '%s' not in authorities %s" %
                            (zone, self._authorities.keys()))
         self._authorities[zone].deleteTXT(hostname, txtname)
+
+    def set_dyndns(self, hostname, record):
+        zone = hostname.split(".", 1)[1]
+        assert zone in self._authorities
+        self._authorities[zone].setRecord(hostname, record)
+
+    def clear_dyndns(self, hostname):
+        zone = hostname.split(".", 1)[1]
+        assert zone in self._authorities
+        self._authorities[zone].clearRecord(hostname)
 
     @inlineCallbacks
     def test_zone(self, zone_name):
