@@ -222,6 +222,7 @@ class Controller(Referenceable, object):
             raise
         start_dyndns_canary(self._tub, furl)
         returnValue("ok")
+        yield 0 # must be a generator
 
 def makeService(config, reactor=reactor):
     parent = MultiService()
