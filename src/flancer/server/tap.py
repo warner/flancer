@@ -107,9 +107,9 @@ class DyndnsController(Referenceable, object):
         elif isinstance(addr, IPv6Address):
             record = dns.Record_AAAA(addr.host, ttl=600)
         else:
-            print "unusable gateway addr: %s %s" % (self._hostname, addr)
+            print "unusable dyndns addr type: %s %s" % (self._hostname, addr)
             return
-        print "setting gateway record: %s %s" % (self._hostname, record)
+        print "setting dyndns record: %s %s" % (self._hostname, record)
         self._server.set_dyndns(self._hostname, record)
 
 
