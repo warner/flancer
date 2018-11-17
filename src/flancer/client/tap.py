@@ -181,6 +181,12 @@ class FlancerResponder(object):
         rr = yield self._tub.getReference(furl)
         yield rr.callRemote("delete_txt", subdomain)
 
+def start_dyndns_canary(tub, furl):
+    class Canary(Referenceable):
+        pass
+    def connected(rref):
+        rref.callRemote("connect", Canary())
+    tub.connectTo(furl, connected)
 
 @attr.s(cmp=False)
 class Controller(Referenceable, object):
@@ -205,6 +211,18 @@ class Controller(Referenceable, object):
         yield self._issuer.issue_cert(hostname)
         returnValue(hostname)
 
+    @inlineCallbacks
+    def remote_accept_add_dyndns(self, furl):
+        self._data["dyndns_furl"] = furl
+        try:
+            self._data.save()
+        except:
+            from twisted.python.failure import Failure
+            print(Failure())
+            raise
+        start_dyndns_canary(self._tub, furl)
+        returnValue("ok")
+
 def makeService(config, reactor=reactor):
     parent = MultiService()
     basedir = FilePath(os.path.expanduser(config["basedir"]))
@@ -215,6 +233,8 @@ def makeService(config, reactor=reactor):
 
     certFile = basedir.child("tub.data").path
     tub = Tub(certFile=certFile)
+    tub.setOption("keepaliveTimeout", 60) # ping after 60s of idle
+    tub.setOption("disconnectTimeout", 5*60) # disconnect/reconnect after 5m
     tub.listenOn("tcp:6319:interface=127.0.0.1")
     tub.setLocation("tcp:127.0.0.1:6319")
     tub.setServiceParent(parent)
@@ -235,6 +255,9 @@ def makeService(config, reactor=reactor):
     r = FlancerResponder(tub, data)
     issuer = AcmeIssuingService(cert_store, client_creator, reactor, [r])
     issuer.setServiceParent(parent)
+
+    if "dyndns_furl" in data:
+        start_dyndns_canary(tub, data["dyndns_furl"])
 
     c = Controller(tub, data, issuer)
     tub.registerReference(c, furlFile=basedir.child("controller.furl").path)

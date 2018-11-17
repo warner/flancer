@@ -23,6 +23,7 @@ class Options(usage.Options):
 
     subCommands = [
         ("add-host", None, AddHostOptions, "Accept an add-host invitation code to add a new hostname"),
+        ("add-dyndns", None, AddHostOptions, "Accept an add-dyndns invitation code to add a new dyndns registration"),
         ]
 
 
@@ -43,6 +44,7 @@ def run(reactor, opts):
     if not opts.subCommand:
         raise usage.UsageError("pick a command")
     so = opts.subOptions
+
     if opts.subCommand == "add-host":
         w = create(APPID, MAILBOX_URL, reactor)
         if so.code:
@@ -57,6 +59,20 @@ def run(reactor, opts):
         print("if you want to configure a post-update hook, edit:")
         print("  %s" % basedir.child(hostname).child("post-update-hook").path)
         print("(and make it executable)")
+        w.send_message("ok")
+        yield w.close()
+
+    if opts.subCommand == "add-dyndns":
+        w = create(APPID, MAILBOX_URL, reactor)
+        if so.code:
+            w.set_code(so.code)
+        else:
+            input_with_completion("Invitation code: ", w.input_code(), reactor)
+        yield w.get_code()
+        furl = yield w.get_message()
+        c = yield getController(reactor, controllerFurl)
+        yield c.callRemote("accept_add_dyndns", furl)
+        print("dyndns hostname added for this client")
         w.send_message("ok")
         yield w.close()
 

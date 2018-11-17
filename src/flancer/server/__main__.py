@@ -3,7 +3,7 @@ from __future__ import print_function
 import os
 
 from twisted.internet.task import react
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from foolscap.api import Tub
@@ -30,6 +30,7 @@ class Options(usage.Options):
     subCommands = [
         ("add-zone", None, AddZoneOptions, "Add a new DNS zone like sf.example.com"),
         ("add-host", None, AddHostOptions, "Add a new hostname like printer.sf.example.com"),
+        ("add-dyndns", None, AddHostOptions, "Add a new dyndns hostname like gw.sf.example.com"),
         ]
 
 
@@ -50,11 +51,13 @@ def run(reactor, opts):
     if not opts.subCommand:
         raise usage.UsageError("pick a command")
     so = opts.subOptions
+
     if opts.subCommand == "add-zone":
         c = yield getController(reactor, controllerFurl)
         resp = yield c.callRemote("add_zone", so.zone_name, so.server_hostname)
         print("zone '%s': %s" % (so.zone_name, resp))
         return
+
     if opts.subCommand == "add-host":
         c = yield getController(reactor, controllerFurl)
         furl = yield c.callRemote("add_host", so.host_name)
@@ -73,6 +76,32 @@ def run(reactor, opts):
         ack = yield w.get_message()
         if ack == "ok":
             print("invitation accepted, certificate issued")
+        else:
+            print("error: %s" % ack)
+        yield w.close()
+
+    if opts.subCommand == "add-dyndns":
+        c = yield getController(reactor, controllerFurl)
+        resp = yield c.callRemote("add_dyndns", so.host_name)
+        if not resp[0]:
+            print("error: %s", resp[1])
+            returnValue(1)
+        furl = resp[1]
+        print("dyndns hostname '%s': %s" % (so.host_name, furl))
+        w = wormhole.create(APPID, MAILBOX_URL, reactor)
+        w.allocate_code()
+        code = yield w.get_code()
+        print("")
+        print("Please run 'python -m flancer.client add-dyndns' on your LAN-side machine")
+        print("and provide the following invitation code:")
+        print()
+        print("  %s" % code)
+        print()
+        print("(waiting for invitation to be accepted...)")
+        w.send_message(furl)
+        ack = yield w.get_message()
+        if ack == "ok":
+            print("invitation accepted, dyndns registered")
         else:
             print("error: %s" % ack)
         yield w.close()
