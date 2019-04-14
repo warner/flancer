@@ -53,22 +53,30 @@ class DynamicAuthority(authority.FileAuthority):
     def loadFile(self, _):
         pass
 
+    def _dump(self):
+        print "records[%s] are now %s" % (self.soa[0], self.records)
+
     def setTXT(self, hostname, txtname, data):
         assert type(data) is type(b""), (type(data), data)
         # hostname is like 'test1.sf.example.com'
         print "setTXT", hostname, txtname, data
         fullname = "%s.%s" % (txtname, hostname)
         self.records[fullname] = [dns.Record_TXT(data, ttl=5)]
+        self._dump()
 
     def deleteTXT(self, hostname, txtname):
         print "deleteTXT", hostname, txtname
         fullname = "%s.%s" % (txtname, hostname)
         del self.records[fullname]
+        self._dump()
 
     def setRecord(self, hostname, record):
         self.records[hostname] = [record]
+        self._dump()
+
     def clearRecord(self, hostname):
         del self.records[hostname]
+        self._dump()
 
     def _lookup(self, name, cls, type, timeout = None):
         print "LOOKUP: %s %s %s" % (name, dns.QUERY_CLASSES.get(cls, cls),
