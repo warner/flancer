@@ -310,6 +310,8 @@ def makeService(config, reactor=reactor):
     certFile = basedir.child("tub.data").path
     #furlFile = basedir.child("server.furl").path
     t = Tub(certFile=certFile)
+    t.setOption("keepaliveTimeout", 60) # ping after 60s of idle
+    t.setOption("disconnectTimeout", 5*60) # disconnect/reconnect after 5m
     #t.setOption("logLocalFailures", True)
     #t.setOption("logRemoteFailures", True)
     #t.unsafeTracebacks = True
