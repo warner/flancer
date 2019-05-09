@@ -88,8 +88,14 @@ class FlancerCertificateStore(object):
 
     @inlineCallbacks
     def store(self, server_name, pem_objects):
-        pem = self._path.child(server_name+".pem")
-        pem.setContent(b''.join(o.as_bytes() for o in pem_objects))
+        self._path.child(server_name+".privkey.pem").setContent(pem_objects[0].as_bytes())
+        self._path.child(server_name+".cert.pem").setContent(pem_objects[1].as_bytes())
+        chain_certs = pem_objects[2:]
+        if chain_certs:
+            self._path.child(server_name+".chain.pem").setContent(b''.join(o.as_bytes() for o in chain_certs))
+        fullchain = b''.join(o.as_bytes() for o in pem_objects)
+
+        self._path.child(server_name+".pem").setContent(fullchain)
         h = self._path.child(server_name+".post-update-hook")
         if h.isfile() and h.getPermissions().user.execute:
             yield self._run_hook(h)
