@@ -94,7 +94,7 @@ class FlancerCertificateStore(object):
         if chain_certs:
             self._path.child(server_name+".chain.pem").setContent(b''.join(o.as_bytes() for o in chain_certs))
         fullchain = b''.join(o.as_bytes() for o in pem_objects[1:])
-        self._path.child(server_name+".fullchain.pem").setContent(everything)
+        self._path.child(server_name+".fullchain.pem").setContent(fullchain)
 
         everything = b''.join(o.as_bytes() for o in pem_objects)
         self._path.child(server_name+".pem").setContent(everything)
