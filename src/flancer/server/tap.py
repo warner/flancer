@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import attr
 import json
@@ -54,18 +55,18 @@ class DynamicAuthority(authority.FileAuthority):
         pass
 
     def _dump(self):
-        print "records[%s] are now %s" % (self.soa[0], self.records)
+        print("records[%s] are now %s" % (self.soa[0], self.records))
 
     def setTXT(self, hostname, txtname, data):
         assert type(data) is type(b""), (type(data), data)
         # hostname is like 'test1.sf.example.com'
-        print "setTXT", hostname, txtname, data
+        print("setTXT", hostname, txtname, data)
         fullname = "%s.%s" % (txtname, hostname)
         self.records[fullname] = [dns.Record_TXT(data, ttl=5)]
         self._dump()
 
     def deleteTXT(self, hostname, txtname):
-        print "deleteTXT", hostname, txtname
+        print("deleteTXT", hostname, txtname)
         fullname = "%s.%s" % (txtname, hostname)
         del self.records[fullname]
         self._dump()
@@ -79,11 +80,11 @@ class DynamicAuthority(authority.FileAuthority):
         self._dump()
 
     def _lookup(self, name, cls, type, timeout = None):
-        print "LOOKUP: %s %s %s" % (name, dns.QUERY_CLASSES.get(cls, cls),
-                                    dns.QUERY_TYPES.get(type, type))
+        print("LOOKUP: %s %s %s" % (name, dns.QUERY_CLASSES.get(cls, cls),
+                                    dns.QUERY_TYPES.get(type, type)))
         d = authority.FileAuthority._lookup(self, name, cls, type, timeout)
         def _log(res):
-            print "-> %s" % (res,)
+            print("-> %s" % (res,))
             return res
         d.addBoth(_log)
         return d
@@ -115,9 +116,9 @@ class DyndnsController(Referenceable, object):
         elif isinstance(addr, IPv6Address):
             record = dns.Record_AAAA(addr.host, ttl=600)
         else:
-            print "unusable dyndns addr type: %s %s" % (self._hostname, addr)
+            print("unusable dyndns addr type: %s %s" % (self._hostname, addr))
             return
-        print "setting dyndns record: %s %s" % (self._hostname, record)
+        print("setting dyndns record: %s %s" % (self._hostname, record))
         self._server.set_dyndns(self._hostname, record)
 
 
