@@ -91,7 +91,7 @@ class DynamicAuthority(authority.FileAuthority):
 
 @attr.s
 class Data(dict):
-    _fn = attr.ib(convert=methodcaller('asTextMode')) # BASEDIR/config.json
+    _fn = attr.ib(converter=methodcaller('asTextMode')) # BASEDIR/config.json
 
     def __attrs_post_init__(self):
         if not self._fn.isfile():

@@ -73,7 +73,7 @@ class FlancerCertificateStore(object):
     # after each update
 
     _data = attr.ib()
-    _path = attr.ib(convert=methodcaller('asTextMode')) # .../certs/
+    _path = attr.ib(converter=methodcaller('asTextMode')) # .../certs/
 
     def _get(self, server_name):
         if server_name not in self._data["hosts"]:
@@ -148,7 +148,7 @@ def maybe_key(pem_path):
 
 @attr.s
 class Data(dict):
-    _fn = attr.ib(convert=methodcaller('asTextMode')) # BASEDIR/config.json
+    _fn = attr.ib(converter=methodcaller('asTextMode')) # BASEDIR/config.json
 
     def __attrs_post_init__(self):
         if not self._fn.isfile():

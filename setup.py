@@ -64,6 +64,8 @@ setup(
         "foolscap",
         "txacme", # only needed on client
         "magic-wormhole",
+        "attrs >= 19.2.0",
+        "service_identity >= 18.1.0",
         ],
     version="0.0.1",
     )
