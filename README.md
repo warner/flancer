@@ -56,7 +56,7 @@ Run the server with Twisted's `twist` utility, telling it the hostname of the
 server machine:
 
 ```
-twist flancer-server --hostname=external.example.com
+server$ twist flancer-server --hostname=external.example.com
 ```
 
 That will leave the process running in the current shell. You can use
@@ -77,7 +77,7 @@ running server.
 For each zone you want to add, run the following command on the server
 machine:
 
-`python -m flancer.server add-zone sf.example.com server.example.com`
+`server$ python -m flancer.server add-zone sf.example.com server.example.com`
 
 The first argument (`sf.example.com`) is the zone being added. We're telling
 the server to accept client certificate requests for names under this zone
@@ -93,7 +93,7 @@ delegated by the parent zone.
 On your selected LAN-side client machine, run the client daemon with:
 
 ```
-twist flancer-client --really
+client$ twist flancer-client --really
 ```
 
 If you omit `--really`, the certificates will come from the Let's Encrypt
