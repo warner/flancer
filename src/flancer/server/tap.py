@@ -120,6 +120,9 @@ class DyndnsController(Referenceable, object):
             return
         print("setting dyndns record: %s %s" % (self._hostname, record))
         self._server.set_dyndns(self._hostname, record)
+        def disconnected():
+            print("canary lost (%s = %s)" % (self._hostname, record))
+        canary.notifyOnDisconnect(disconnected)
 
 
 @attr.s(cmp=False)
